@@ -8,13 +8,26 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -26,15 +39,23 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.DefaultTableModel;
 
 import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class ManageCashierWindow {
-    JFrame frame = new JFrame();        
+	static private String currentSelectedCashier = null;
+	static JFileChooser chooser;
+	static private SharazDatabase sharazDatabase = new SharazDatabase();
+
 	public ManageCashierWindow() {
+	    JFrame frame = new JFrame();        
+		
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
@@ -52,7 +73,7 @@ public class ManageCashierWindow {
         leftNavbarPanel.setBackground(new Color(46, 134, 171));
         leftNavbarPanel.setPreferredSize(new Dimension(200, 0));
         JLabel adminaAvatarLabel = new JLabel();
-        adminaAvatarLabel.setText("Welcome AISHA");
+        adminaAvatarLabel.setText("Welcome ADMIN");
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
         adminaAvatarLabel.setIcon(adminIcon);
@@ -247,8 +268,10 @@ public class ManageCashierWindow {
         JPanel imagePanel = new JPanel();
         imagePanel.setBorder(new  EmptyBorder(10, 10, 10, 10));
         JPanel imagePanelBody = new JPanel();
+        imagePanelBody.setPreferredSize(new Dimension(160, 160));
         imagePanelBody.setBackground(new Color(46, 134, 171));
         JLabel imageAvatar = new JLabel();
+        
         imageAvatar.setIcon(new ImageIcon(new ImageIcon("avatar.png").getImage().getScaledInstance(150, 150, Image.SCALE_DEFAULT)));
         imagePanelBody.add(imageAvatar);
         
@@ -286,7 +309,7 @@ public class ManageCashierWindow {
         // table panel
         JPanel tablePanel = new JPanel();
         tablePanel.setLayout(new BorderLayout());
-
+        
         String[] columnNames = {
         		"S/N",
                 "Cashier ID",
@@ -294,28 +317,65 @@ public class ManageCashierWindow {
                 "Last Name",
                 "Phone Number",
                 "Date Joined",
+                "Address",
+                "Avatar"
                 };
-
-        Object[][] data = {
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        		{"1", "SC/1", "Adam", "Suleiman", "08166644083", "15 Nov, 2020"},
-        		{"2", "SC/2", "Zakariyya", "Yusuf", "08123456789", "29 Aug, 2021"},
-        	};
-
-        JTable table = new JTable(data, columnNames);
+        
+        int cashierRowCount = sharazDatabase.countTableRows("cashier");
+        
+        Object[][] data = new Object[cashierRowCount][8];
+        
+       
+        
+        try {
+        	
+        	 PreparedStatement getCashiersStatement;
+     		 ResultSet resultSet;
+             String getCashiersQuery = "SELECT * FROM cashier";
+             
+             getCashiersStatement = sharazDatabase.CreateConnection().prepareStatement(getCashiersQuery);
+			resultSet = getCashiersStatement.executeQuery();
+			
+	        int i = 0;
+	        while (resultSet.next() && i < cashierRowCount) {
+				BufferedImage bufferedImage = null;
+				ImageIcon cashierImage = null;
+				try {
+					 bufferedImage = ImageIO.read(resultSet.getBinaryStream("avatar"));
+					 cashierImage = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(150, 150, Image.SCALE_DEFAULT));
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+				
+	        	int j = i + 1;
+				data[i][0] =  j;
+				data[i][1] = resultSet.getString("cashier_id");
+				data[i][2] = resultSet.getString("first_name");
+				data[i][3] = resultSet.getString("last_name");
+				data[i][4] = resultSet.getString("phone_number");
+				data[i][5] = resultSet.getString("date_joined");
+				data[i][6] = resultSet.getString("address");
+				data[i][7] = cashierImage;
+				i++;
+			}
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+        
+		 DefaultTableModel model = new DefaultTableModel(data, columnNames)
+	        {
+	            public Class getColumnClass(int column)
+	            {
+	                return getValueAt(0, column).getClass();
+	            }
+	       };
+	       
+	     JTable table = new JTable(model);
+	     table.setRowHeight(100);
+        
+        table.removeColumn(table.getColumnModel().getColumn(6));
+        
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder (BorderFactory.createTitledBorder (BorderFactory.createEtchedBorder (),
                 "Manage Cashiers",
@@ -333,6 +393,198 @@ public class ManageCashierWindow {
         
         
         // LOGIC
+        table.addMouseListener(new MouseListener() {
+			
+			@Override
+			public void mouseReleased(MouseEvent e) {}
+			
+			@Override
+			public void mousePressed(MouseEvent e) {}
+			
+			@Override
+			public void mouseExited(MouseEvent e) {}
+			
+			@Override
+			public void mouseEntered(MouseEvent e) {}
+			
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				
+				currentSelectedCashier = table.getValueAt(table.getSelectedRow(), 1).toString();
+				cashierIdInput.setText(table.getValueAt(table.getSelectedRow(), 1).toString());
+				cashierFirstNameInput.setText(table.getValueAt(table.getSelectedRow(), 2).toString());
+				cashierLastNameInput.setText(table.getValueAt(table.getSelectedRow(), 3).toString());
+				cashierPhoneNumberInput.setText(table.getValueAt(table.getSelectedRow(), 4).toString());
+				cashierDateJoinedInput.setText(table.getValueAt(table.getSelectedRow(), 5).toString());
+				addressInput.setText(table.getModel().getValueAt(table.getSelectedRow(), 6).toString());
+				
+				// get Selected image
+				  try {
+			        	
+			        	 PreparedStatement getCashiersStatement;
+			     		 ResultSet resultSet;
+			             String getCashiersQuery = "SELECT * FROM cashier WHERE cashier_id = ?";
+			             
+			             getCashiersStatement = sharazDatabase.CreateConnection().prepareStatement(getCashiersQuery);
+			             getCashiersStatement.setString(1, currentSelectedCashier);
+						resultSet = getCashiersStatement.executeQuery();
+						
+				        while (resultSet.next()) {
+							BufferedImage bufferedImage = null;
+							ImageIcon cashierImage = null;
+							try {
+								 bufferedImage = ImageIO.read(resultSet.getBinaryStream("avatar"));
+								 cashierImage = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(150, 150, Image.SCALE_DEFAULT));
+								 imageAvatar.setIcon(cashierImage);
+							} catch (IOException e1) {
+								e1.printStackTrace();
+							}
+				        }
+				        
+				  }catch (Exception e1){
+					  e1.printStackTrace();
+				  }
+				        
+				
+			}
+		});
+        
+        // image select
+        uploadImageButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				FileNameExtensionFilter fileNameExtensionFilter;
+				
+				 if (currentSelectedCashier != null) {
+					chooser = new JFileChooser();
+					File file = new java.io.File("C:\\Users\\Adamu Fura Suleiman\\Pictures");
+					chooser.setCurrentDirectory(file);
+					fileNameExtensionFilter = new FileNameExtensionFilter("only jpg and png are allowed", "jpg", "png");
+					chooser.addChoosableFileFilter(fileNameExtensionFilter);
+					
+					chooser.showOpenDialog(frame);
+					
+					imagePath.setText(chooser.getSelectedFile().toString());
+									
+				 }
+			}
+		});
+        
+        // Update action
+        updateButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// check if a row is selected
+				 if (currentSelectedCashier != null) {
+					 int updateResponse = JOptionPane.showConfirmDialog(contentPanel, "Are you sure you want to update this cashier?");
+					 
+						File imageFile = null;
+					    FileInputStream fileInputStream = null;
+						
+						imageFile = new File(chooser.getSelectedFile().toString());						
+
+					    
+						try {
+							fileInputStream = new FileInputStream(imageFile);
+						} catch (FileNotFoundException e1) {
+							e1.printStackTrace();
+						}
+					 
+					 // confirm box
+					 if (updateResponse == 0) {
+						 PreparedStatement UpdateCashiersStatement;
+			             String DeleteCashierQuery = "UPDATE cashier SET first_name = ?, last_name = ?, phone_number = ?,"
+			             		+ "address = ?, date_joined = ?, avatar = ? WHERE cashier_id = ?";
+			             
+			             
+			             
+			             try {
+			            	 UpdateCashiersStatement = sharazDatabase.CreateConnection().prepareStatement(DeleteCashierQuery);
+			            	 UpdateCashiersStatement.setString(1, cashierFirstNameInput.getText());
+			            	 UpdateCashiersStatement.setString(2, cashierLastNameInput.getText());
+			            	 UpdateCashiersStatement.setString(3, cashierPhoneNumberInput.getText());
+			            	 UpdateCashiersStatement.setString(4, addressInput.getText());
+			            	 UpdateCashiersStatement.setString(5, cashierDateJoinedInput.getText());
+			            	 UpdateCashiersStatement.setBinaryStream(6, (InputStream)fileInputStream, (int)imageFile.length());
+			            	 UpdateCashiersStatement.setString(7, currentSelectedCashier);
+			            	 
+			            	 
+				             int response = UpdateCashiersStatement.executeUpdate();
+				             
+				             if (response == 1) {
+								JOptionPane.showMessageDialog(contentPanel, "Cashier Has been updated");
+								currentSelectedCashier = null;
+								model.fireTableDataChanged();
+								table.repaint();
+								frame.dispose();
+								new ManageCashierWindow();
+							}
+				             
+						} catch (SQLException e1) {
+							e1.printStackTrace();
+						}
+					}
+				}else {
+					// show dialogue box
+					JOptionPane.showMessageDialog(contentPanel, "No Cashier Is Selected");
+				}
+			}
+			
+		});
+         
+        // Delete action
+        DeleteButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// check if a row is selected
+				 if (currentSelectedCashier != null) {
+					 int deleteResponse = JOptionPane.showConfirmDialog(contentPanel, "Are you sure you want to delete this cashier?");
+					 
+					 // confirm box
+					 if (deleteResponse == 0) {
+						 PreparedStatement DeleteCashiersStatement;
+			             String DeleteCashierQuery = "DELETE FROM cashier WHERE cashier_id = ?";
+			             
+			             try {
+			            	 DeleteCashiersStatement = sharazDatabase.CreateConnection().prepareStatement(DeleteCashierQuery);
+			            	 DeleteCashiersStatement.setString(1, currentSelectedCashier);
+				             int response = DeleteCashiersStatement.executeUpdate();
+				             
+				             if (response == 1) {
+								JOptionPane.showMessageDialog(contentPanel, "Cashier Has been deleted");
+								currentSelectedCashier = null;
+								frame.dispose();
+								new ManageCashierWindow();
+							}
+				             
+						} catch (SQLException e1) {
+							e1.printStackTrace();
+						}
+					}
+				}else {
+					// show dialogue box
+					JOptionPane.showMessageDialog(contentPanel, "No Cashier Is Selected");
+				}
+			}
+		});
+        
+        // Clear action
+        clearButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentSelectedCashier = null;
+				cashierIdInput.setText("");
+				cashierFirstNameInput.setText("");
+				cashierLastNameInput.setText("");
+				cashierPhoneNumberInput.setText("");
+				cashierDateJoinedInput.setText("");
+				addressInput.setText("");
+			}
+		});
         
         // sidebar logic
         // dashboard button
@@ -417,5 +669,6 @@ public class ManageCashierWindow {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+	
 
 }

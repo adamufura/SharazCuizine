@@ -8,6 +8,9 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -25,11 +28,16 @@ import javax.swing.border.EmptyBorder;
 import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class AddMealWindow {
-    JFrame frame = new JFrame();        
+
 	public AddMealWindow() {
+	    JFrame frame = new JFrame();        
+		SharazDatabase sharazDatabase = new SharazDatabase();
+
+		
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
@@ -47,7 +55,7 @@ public class AddMealWindow {
         leftNavbarPanel.setBackground(new Color(46, 134, 171));
         leftNavbarPanel.setPreferredSize(new Dimension(200, 0));
         JLabel adminaAvatarLabel = new JLabel();
-        adminaAvatarLabel.setText("Welcome AISHA");
+        adminaAvatarLabel.setText("Welcome ADMIN");
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
         adminaAvatarLabel.setIcon(adminIcon);
@@ -199,8 +207,27 @@ public class AddMealWindow {
          formPanel.setPreferredSize(new Dimension(300, 350));
          formPanel.setBorder(new EmptyBorder(50, 20, 50, 20));
          
+         // ID Logic
+         ResultSet resultSet;
+         String currentID = "SHA/MEAL/";
+         int mealIntegerId = 0;
+         String lastMealID = "SELECT * FROM meals ORDER BY meal_id DESC LIMIT 1";
+         try {
+			PreparedStatement getIdStatement = sharazDatabase.CreateConnection().prepareStatement(lastMealID);
+			
+			resultSet = getIdStatement.executeQuery();
+			
+			if (resultSet.next()) {
+				mealIntegerId = (Integer.parseInt(resultSet.getString(2).substring(9))) + 1;
+			}
+			
+		} catch (SQLException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+         
          JLabel mealIdLabel = new JLabel("Meal Id");
-         JTextField mealIdInput = new JTextField();
+         JTextField mealIdInput = new JTextField(currentID + String.valueOf(mealIntegerId));
          
          JLabel mealTitleLabel = new JLabel("Meal Title");
          JTextField mealTitleInput = new JTextField();
@@ -243,6 +270,59 @@ public class AddMealWindow {
         
         
         // LOGIC
+        
+        AddMealBtn.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String mealID = mealIdInput.getText();
+				String mealTitle = mealTitleInput.getText();
+				String mealDescription = mealDescriptionInput.getText();
+				String mealPrice = mealPriceInput.getText();
+				
+				// empty inputs validation
+				if (mealID.isEmpty() || mealTitle.isEmpty() || mealDescription.isEmpty() || mealPrice.isEmpty()) {
+					JOptionPane.showMessageDialog(contentPanel, "Inputs cannot be empty", "Fill the Inputs!",JOptionPane.WARNING_MESSAGE, null);
+					return;
+				}
+				
+				// convert price to double
+				double newMealPrice = Double.parseDouble(mealPrice);
+				
+				try {
+					PreparedStatement preparedStatement = null;
+					
+					String addMealQuery = "INSERT INTO meals(meal_id, meal_title, meal_description, meal_price) VALUES(?, ?, ?, ?)";
+					preparedStatement = sharazDatabase.CreateConnection().prepareStatement(addMealQuery);
+					
+					preparedStatement.setString(1, mealID);
+					preparedStatement.setString(2, mealTitle);
+					preparedStatement.setString(3, mealDescription);
+					preparedStatement.setDouble(4, newMealPrice);
+					
+					int response = (int) preparedStatement.executeLargeUpdate();
+					
+					if (response == 1) {
+						String msg = "Meal " + mealTitle + " was successfully added";
+						JOptionPane.showMessageDialog(contentPanel, msg, "Meal Added!", JOptionPane.INFORMATION_MESSAGE, null);
+						frame.dispose();
+						new AddMealWindow();
+					}else {
+						JOptionPane.showMessageDialog(contentPanel, "Can't add Meal try again", "Error!", JOptionPane.ERROR_MESSAGE, null);
+					}
+					
+					// reset inputs to empty
+					mealTitleInput.setText("");
+					mealDescriptionInput.setText("");
+					mealPriceInput.setText("");
+					
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				
+			}
+		});
         
         // sidebar logic
         // dashboard button

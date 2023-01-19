@@ -10,6 +10,11 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.awt.print.PrinterException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -32,16 +37,34 @@ import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
 import sharaz.ImageAvatar;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class PaymentWindow {
-	public PaymentWindow() {
+	
+	private String loggedInCashierId;
+	
+	static private String currentSelectedMealId;
+	static private int currentSelectedQuantity = 0;
+	static private double currentSelectedPrice = 0.0;
+
+	
+	public PaymentWindow(String cashierId) {
+		this.loggedInCashierId = cashierId;
+		
 		JFrame frame = new JFrame();
+		double entireTotal = 0.0;
+		SharazDatabase sharazDatabase = new SharazDatabase();
+		BufferedImage bufferedImage = (BufferedImage) sharazDatabase.getCashier(loggedInCashierId)[2];
+		int ItemsInCart = 0;
+		ItemsInCart = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+
+		
 		IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
         ImageIcon icon = new ImageIcon(new ImageIcon("logo.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
-        ImageIcon adminIcon = new ImageIcon(new ImageIcon("avatar.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
+        ImageIcon adminIcon = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
         // navbar panel
         JPanel navbarPanel = new JPanel();
         navbarPanel.setLayout(new BorderLayout());
@@ -60,7 +83,7 @@ public class PaymentWindow {
         ImageAvatar imageAvatar = new ImageAvatar();
         imageAvatar.setImage(adminIcon);
         imageAvatar.setBorderColor(new Color(132, 220, 198));
-        adminaAvatarLabel.setText("Welcome Zaks");
+        adminaAvatarLabel.setText("Welcome " + sharazDatabase.getCashier(loggedInCashierId)[0].toString());
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
 		adminaAvatarLabel.setHorizontalAlignment(JLabel.CENTER);
@@ -100,7 +123,7 @@ public class PaymentWindow {
         bottomRightNavbar.setBorder(new EmptyBorder(0, 0, 0, 10));
         bottomRightNavbar.setLayout(new BorderLayout());
         bottomRightNavbar.setBackground(new Color(132, 220, 198));
-        JLabel cartLabel = new JLabel("CART: (0)");
+        JLabel cartLabel = new JLabel("CART: (" + ItemsInCart + ")");
         cartLabel.setFont(new Font("Comic Sans", Font.ITALIC, 18));
         cartLabel.setIcon(IconFontSwing.buildIcon(GoogleMaterialDesignIcons.SHOPPING_CART, 25, new Color(46, 134, 171)));
         
@@ -217,11 +240,40 @@ public class PaymentWindow {
         cartTablePanel.setLayout(new BorderLayout());
         
         String columnNames[] = {"Product", "Quantity", "Sub-Total"};
-        Object[][] data = {
-        		{"Chips", "X2", "N1400"},
-        		{"Lacaser Drink", "X2", "N1400"},
-        		{"White rice", "X2", "N1400"}
-        };
+        int cartRows = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+        Object[][] data = new Object[cartRows][3];
+                
+        try {
+        	
+        	 PreparedStatement getCartStatement;
+     		 ResultSet resultSet;
+             String getCartQuery = "SELECT * FROM cart WHERE cashier_id = ?";
+             
+             getCartStatement = sharazDatabase.CreateConnection().prepareStatement(getCartQuery);
+             getCartStatement.setString(1, loggedInCashierId);
+             resultSet = getCartStatement.executeQuery();
+             
+             
+	        int i = 0;
+	        while (resultSet.next()) {
+	        	
+	        	entireTotal = entireTotal + Double.parseDouble(resultSet.getString("subtotal"));
+	        	
+				data[i][0] = sharazDatabase.getMealTitle(resultSet.getString("meal_id"));
+				data[i][1] = resultSet.getString("quantity");
+				data[i][2] = resultSet.getString("subtotal");
+				
+				i++;
+			}
+	        
+	        resultSet.close();
+	        getCartStatement.close();
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+        
+        
         JTable cartTable = new JTable(data, columnNames);
         cartTable.setShowGrid(false);
         
@@ -233,7 +285,7 @@ public class PaymentWindow {
         
         JLabel totalAmountCartLabel = new JLabel("TOTAL = ");
         totalAmountCartLabel.setForeground(Color.WHITE);
-        JLabel totalAmountCartValue = new JLabel("N4200");
+        JLabel totalAmountCartValue = new JLabel("N" + String.valueOf(entireTotal));
         totalAmountCartValue.setForeground(Color.WHITE);
         
         totalAmountPanel.add(totalAmountCartLabel);
@@ -281,12 +333,34 @@ public class PaymentWindow {
         formPanel.setLayout(new GridBagLayout());
         formPanel.setBorder(BorderFactory.createLineBorder(new Color(46, 134, 171)));
         
+        // get the available
+        int mealTableRows = sharazDatabase.countTableRows("meals");
+        String meals[] = new String[mealTableRows];
+        
+        try {
+            PreparedStatement preparedStatement;
+            ResultSet resultSet;
+            
+            String getAvailableMeals = "SELECT * FROM meals";
+			preparedStatement = sharazDatabase.CreateConnection().prepareStatement(getAvailableMeals);
+			
+			resultSet = preparedStatement.executeQuery();
+			
+			int counter = 0;
+			while (resultSet.next()) {
+				meals[counter] = resultSet.getString(2) + " - " + resultSet.getString(3) + " - N" + resultSet.getString(5);
+				counter++;
+			}
+			
+			preparedStatement.close();
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+        
         GridBagConstraints gridBagConstraints = new GridBagConstraints();
         
         // row 1
         JLabel availableMealsLabel = new JLabel("Available Meals");
-
-        String meals[] = {"Chips", "Fried Rice", "White Rice", "Chicken Pepper"};
         
         JComboBox<String> availableMealsOption = new JComboBox<String>(meals);
         gridBagConstraints.weightx = 1;
@@ -311,6 +385,8 @@ public class PaymentWindow {
         
         JLabel totalAmountLabel = new JLabel("Total Amount");
         JTextField totalAmountInput = new JTextField();
+        totalAmountInput.setEditable(false);
+        totalAmountInput.setText(String.valueOf(currentSelectedPrice));
         JPanel totalItemAmountPanel = new JPanel();
         totalItemAmountPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         totalItemAmountPanel.setLayout(new BoxLayout(totalItemAmountPanel, BoxLayout.Y_AXIS));
@@ -329,6 +405,7 @@ public class PaymentWindow {
         JButton addButton = new JButton();
         addButton.setIcon(IconFontSwing.buildIcon(FontAwesome.PLUS_SQUARE, 20, Color.BLACK));
         JTextField quantityInput = new JTextField(5);
+        quantityInput.setText(String.valueOf(currentSelectedQuantity));
         JButton minusButton = new JButton();
         minusButton.setIcon(IconFontSwing.buildIcon(FontAwesome.MINUS_SQUARE, 20, Color.BLACK));
         JPanel quanityPanel = new JPanel();
@@ -371,6 +448,234 @@ public class PaymentWindow {
         // end of page content
         
         // LOGIC
+        availableMealsOption.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String selectedMeal = (String) availableMealsOption.getSelectedItem();
+				String selectedMealId = selectedMeal.substring(0, 13);
+				String selectedMealPrice = selectedMeal.substring(selectedMeal.lastIndexOf("N") + 1);
+				currentSelectedQuantity = 1;
+				
+				totalAmountInput.setText(selectedMealPrice);
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+				
+				currentSelectedPrice = Double.parseDouble(selectedMealPrice);
+				currentSelectedMealId = selectedMealId;
+			}
+		});
+        
+        // add more meal
+        
+        addButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				if (currentSelectedQuantity == 0) {
+					JOptionPane.showMessageDialog(contentPanel, "Please select a meal");
+					return;
+				}
+				
+				currentSelectedQuantity = currentSelectedQuantity + 1;
+								
+				double totalAmount = currentSelectedPrice * currentSelectedQuantity;
+								
+				totalAmountInput.setText(String.valueOf(totalAmount));
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+			}
+		});
+        
+        minusButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentSelectedQuantity = currentSelectedQuantity - 1;
+								
+				double totalAmount = currentSelectedPrice * currentSelectedQuantity;
+								
+				totalAmountInput.setText(String.valueOf(totalAmount));
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+			}
+		});
+        
+        // Add to cart
+        addToCartButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				if (currentSelectedQuantity == 0) {
+					JOptionPane.showMessageDialog(contentPanel, "Please select a meal");
+					return;
+				}
+				
+				double totalAmount = currentSelectedPrice * currentSelectedQuantity;
+				double sub_total = totalAmount;
+				
+				try {
+					PreparedStatement preparedStatement;
+	                String addToCartQuery = "INSERT INTO `cart`(meal_id, cashier_id, quantity, subtotal) VALUES(?, ?, ?, ?)";
+					preparedStatement = sharazDatabase.CreateConnection().prepareStatement(addToCartQuery);
+					preparedStatement.setString(1, currentSelectedMealId);
+					preparedStatement.setString(2, loggedInCashierId);
+					preparedStatement.setString(3, String.valueOf(currentSelectedQuantity));
+					preparedStatement.setString(4, String.valueOf(sub_total));
+					
+					int res = preparedStatement.executeUpdate();
+					
+					if (res == 1) {
+						String msg = "Meal added to cart";
+						JOptionPane.showMessageDialog(contentPanel, msg, "Meal Added", JOptionPane.INFORMATION_MESSAGE, null);
+						frame.dispose();
+						new PaymentWindow(loggedInCashierId);
+					}else {
+						JOptionPane.showMessageDialog(contentPanel, "Can't Add this meal", "Error!", JOptionPane.ERROR_MESSAGE, null);
+					}
+					
+						preparedStatement.close();
+				} catch (Exception e2) {
+					e2.printStackTrace();
+				}
+				
+			}
+		});
+        
+        // Clear order
+        
+        clearButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentSelectedQuantity = 0;
+				currentSelectedPrice = 0.0;
+				
+				totalAmountInput.setText(String.valueOf(currentSelectedPrice));
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+			}
+		});
+        
+        // clear cart
+        clearCartButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int clearCart = JOptionPane.showConfirmDialog(contentPanel, "Clear All Meals In Cart?");
+				
+				if (clearCart == 0) {
+					try {
+						PreparedStatement preparedStatement;
+		                String DeleteCartQuery = "DELETE FROM `cart` WHERE cashier_id = ?";
+						preparedStatement = sharazDatabase.CreateConnection().prepareStatement(DeleteCartQuery);
+						preparedStatement.setString(1, loggedInCashierId);
+						
+						int res = preparedStatement.executeUpdate();
+						
+						if (res > 0) {
+							String msg = "Meals Cleared From Cart";
+							JOptionPane.showMessageDialog(contentPanel, msg, "Meal Cleared", JOptionPane.INFORMATION_MESSAGE, null);
+							frame.dispose();
+						}else {
+							JOptionPane.showMessageDialog(contentPanel, "Can't Delete Meal", "Error!", JOptionPane.ERROR_MESSAGE, null);
+						}
+						
+						preparedStatement.close();	
+					} catch (Exception e2) {
+						e2.printStackTrace();
+					}
+				}
+
+			}
+		});
+        
+        //make payment and order
+        makePaymentButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				// get cart items
+			        int cartRows = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+			        Object[][] cartData = new Object[cartRows][3];
+			                
+			        try {
+			        	
+			        	 PreparedStatement getCartStatement;
+			     		 ResultSet resultSet;
+			             String getCartQuery = "SELECT * FROM cart WHERE cashier_id = ?";
+			             
+			             getCartStatement = sharazDatabase.CreateConnection().prepareStatement(getCartQuery);
+			             getCartStatement.setString(1, loggedInCashierId);
+			             resultSet = getCartStatement.executeQuery();
+			             
+				        int index = 0;
+				        while (resultSet.next()) {				        	
+				        	cartData[index][0] = resultSet.getString("meal_id");
+				        	cartData[index][1] = resultSet.getString("quantity");
+				        	cartData[index][2] = resultSet.getString("subtotal");
+							index++;
+						}
+				        
+				        resultSet.close();
+				        getCartStatement.close();
+				        
+				        // insert them into sales
+				        java.util.Date date=new java.util.Date();
+						java.sql.Date sqlOrderDate =new java.sql.Date(date.getTime());
+				        
+				        String salesQuery = "INSERT INTO `sales`(meal_id, cashier_id, quantity, amount, date_time) VALUES ";
+				        
+				        for (int i = 0; i < cartData.length; i++) {
+							
+			salesQuery = salesQuery + 
+			"(\"" + cartData[i][0]+"\", " + "\"" + loggedInCashierId + "\"," + "\"" + cartData[i][1] + "\"," +  "\"" + cartData[i][2] + "\"," + "\"" + sqlOrderDate + "\"" + "), ";
+				        	
+						}
+				        
+				        salesQuery = salesQuery.substring(0, salesQuery.length() - 2);
+				        				        
+				        PreparedStatement preparedStatement;
+				        preparedStatement = sharazDatabase.CreateConnection().prepareStatement(salesQuery);
+						
+						int res = preparedStatement.executeUpdate();
+						
+						preparedStatement.close();
+						
+						if (res > 0) {
+							
+							PreparedStatement preparedStatement2;
+							String deleteCart = "DELETE FROM cart WHERE cashier_id = ?";
+							preparedStatement2 = sharazDatabase.CreateConnection().prepareStatement(deleteCart);
+							preparedStatement2.setString(1, loggedInCashierId);
+							
+							int last_res = preparedStatement2.executeUpdate();
+							
+							if (last_res > 0) {
+								String msg = "Your Order was successfull";
+								JOptionPane.showMessageDialog(contentPanel, msg, "Meal Ordered", JOptionPane.INFORMATION_MESSAGE, null);
+								try {
+									cartTable.print();
+								} catch (PrinterException e1) {
+									e1.printStackTrace();
+								}
+								frame.dispose();
+								new PaymentWindow(loggedInCashierId);
+							}else {
+								JOptionPane.showMessageDialog(contentPanel, "Can't Order this meals", "Error!", JOptionPane.ERROR_MESSAGE, null);
+							}
+							
+						}else {
+							JOptionPane.showMessageDialog(contentPanel, "Can't Order this meals", "Error!", JOptionPane.ERROR_MESSAGE, null);
+						}
+				        
+				        
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
+			        
+				
+			}
+		});
         
         // sidebar logic
         // dashboard button
@@ -379,7 +684,7 @@ public class PaymentWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new CashierDashBoardWindow();
+				new CashierDashBoardWindow(loggedInCashierId);
 			}
 		});
         // payment and cart button
@@ -396,7 +701,7 @@ public class PaymentWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new CashierSalesWindow();
+				new CashierSalesWindow(loggedInCashierId);
 			}
 		});
         // sharaz meals button
@@ -405,7 +710,7 @@ public class PaymentWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new SharazMealsWindow();
+				new SharazMealsWindow(loggedInCashierId);
 			}
 		});
         // change password button
@@ -414,9 +719,23 @@ public class PaymentWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new ChangePasswordWindow();
+				new ChangePasswordWindow(loggedInCashierId);
 			}
 		});
+        //logout logic
+        logoutButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int logoutOption = JOptionPane.showConfirmDialog(frame, "Do you want to Log Out?", "Log Out", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null);
+				System.out.println(logoutOption);
+				if (logoutOption == 0) {
+					frame.dispose();
+					new StartWindow();
+				}
+			}
+		});
+        
         //logout logic
         logoutButton.addActionListener(new ActionListener() {
 			

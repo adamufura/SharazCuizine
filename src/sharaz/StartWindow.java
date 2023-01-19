@@ -8,6 +8,9 @@ import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -16,6 +19,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
@@ -31,6 +35,9 @@ public class StartWindow {
     JFrame frame =  new JFrame();
     
     public StartWindow() {
+    	
+		SharazDatabase sharazDatabase = new SharazDatabase();
+						
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
         ImageIcon icon = new ImageIcon("logo.png");
@@ -146,22 +153,77 @@ public class StartWindow {
         
         // LOGIC
         loginButton.addActionListener(new ActionListener() {
-			
+     	
 			@Override
-			public void actionPerformed(ActionEvent e) {
-				frame.dispose();
+			public void actionPerformed(ActionEvent e) {		
+				// Get input values
+	        	String userID = idInput.getText();
+	        	@SuppressWarnings("deprecation")
+				String userPassword = passswordInput.getText();
+	        	
+	        	//check if inputs are empty
+				
+				if (userID.isEmpty() || userPassword.isEmpty()) {
+					JOptionPane.showMessageDialog(rightPanel, "Inputs cannot be empty");
+					return;
+				}
+	        	
 				int selectedUser = userTypeBox.getSelectedIndex();
+				// admin selected
 				if (selectedUser == 0) {
-					// Admin dashboard
-					new DashboardWindow();
+					// compare user info from database
+					PreparedStatement preparedStatement;
+					ResultSet resultSet = null;
+					try {
+						String getAdminInfo = "SELECT * FROM admin WHERE admin_id = ? AND admin_password = ?";
+						preparedStatement = sharazDatabase.CreateConnection().prepareStatement(getAdminInfo);
+						preparedStatement.setString(1, userID);
+						preparedStatement.setString(2,  userPassword);
+												
+						resultSet = preparedStatement.executeQuery();
+						
+						if (resultSet.next()) {
+							// Admin dashboard
+							frame.dispose();
+							new DashboardWindow();
+						}else {
+							JOptionPane.showMessageDialog(rightPanel, "Incorrect ID or password");
+						}
+
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
+					
+					
 				}else {
-					// cashier dashboard
-					new CashierDashBoardWindow();
+					// compare user info from database
+					PreparedStatement preparedStatement;
+					ResultSet resultSet = null;
+					try {
+						String getCashierInfo = "SELECT * FROM cashier WHERE cashier_id = ? AND password = ?";
+						preparedStatement = sharazDatabase.CreateConnection().prepareStatement(getCashierInfo);
+						preparedStatement.setString(1, userID);
+						preparedStatement.setString(2,  userPassword);
+												
+						resultSet = preparedStatement.executeQuery();
+						
+						if (resultSet.next()) {
+							frame.dispose();
+							// cashier dashboard
+							new CashierDashBoardWindow(userID);
+						}else {
+							JOptionPane.showMessageDialog(frame, "Incorrect ID or password");
+						}
+
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
 				}
 			}
 		});
 
         // window configuration
+        frame.getRootPane().setDefaultButton(loginButton);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setTitle("Sharaz Management System");
         frame.setIconImage(icon.getImage());

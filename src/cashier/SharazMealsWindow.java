@@ -8,6 +8,10 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -16,6 +20,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
@@ -27,15 +32,27 @@ import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
 import sharaz.ImageAvatar;
+import sharaz.SharazDatabase;
+import sharaz.StartWindow;
 
 public class SharazMealsWindow {
-	public SharazMealsWindow() {
+	
+	private String loggedInCashierId;
+
+	public SharazMealsWindow(String cashierId) {
+		this.loggedInCashierId = cashierId;
+		
+		SharazDatabase sharazDatabase = new SharazDatabase();
+		BufferedImage bufferedImage = (BufferedImage) sharazDatabase.getCashier(loggedInCashierId)[2];
+		int ItemsInCart = 0;
+		ItemsInCart = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+		
 		JFrame frame = new JFrame();
 		IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
         ImageIcon icon = new ImageIcon(new ImageIcon("logo.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
-        ImageIcon adminIcon = new ImageIcon(new ImageIcon("avatar.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
+        ImageIcon adminIcon = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
         // navbar panel
         JPanel navbarPanel = new JPanel();
         navbarPanel.setLayout(new BorderLayout());
@@ -54,7 +71,7 @@ public class SharazMealsWindow {
         ImageAvatar imageAvatar = new ImageAvatar();
         imageAvatar.setImage(adminIcon);
         imageAvatar.setBorderColor(new Color(132, 220, 198));
-        adminaAvatarLabel.setText("Welcome Zaks");
+        adminaAvatarLabel.setText("Welcome " + sharazDatabase.getCashier(loggedInCashierId)[0].toString());
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
 		adminaAvatarLabel.setHorizontalAlignment(JLabel.CENTER);
@@ -94,7 +111,7 @@ public class SharazMealsWindow {
         bottomRightNavbar.setBorder(new EmptyBorder(0, 0, 0, 10));
         bottomRightNavbar.setLayout(new BorderLayout());
         bottomRightNavbar.setBackground(new Color(132, 220, 198));
-        JLabel cartLabel = new JLabel("CART: (0)");
+        JLabel cartLabel = new JLabel("CART: (" + ItemsInCart + ")");
         cartLabel.setFont(new Font("Comic Sans", Font.ITALIC, 18));
         cartLabel.setIcon(IconFontSwing.buildIcon(GoogleMaterialDesignIcons.SHOPPING_CART, 25, new Color(46, 134, 171)));
         
@@ -207,6 +224,9 @@ public class SharazMealsWindow {
         SalesPanel.setBorder(new EmptyBorder(30, 10, 30, 10));
         SalesPanel.setLayout(new BorderLayout());
 
+       
+ // manage meals
+        
         String[] columnNames = {
         		"S/N",
                 "Meal ID",
@@ -214,18 +234,37 @@ public class SharazMealsWindow {
                 "Description",
                 "Price",
                 };
-
-        Object[][] data = {
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        		{"1", "Meal1", "Chips", "Chips and Egg with sauce", "N700"},
-        	};
+        
+        int mealRowCount = sharazDatabase.countTableRows("meals");
+        
+        Object[][] data = new Object[mealRowCount][6];
+        
+       
+        
+        try {
+        	
+        	 PreparedStatement getMealsStatement;
+     		 ResultSet resultSet;
+             String getMealsQuery = "SELECT * FROM meals";
+             
+             
+			getMealsStatement = sharazDatabase.CreateConnection().prepareStatement(getMealsQuery);
+			resultSet = getMealsStatement.executeQuery();
+			
+	        int i = 0;
+	        while (resultSet.next() && i < mealRowCount) {
+	        	int j = i + 1;
+				data[i][0] =  j;
+				data[i][1] = resultSet.getString("meal_id");
+				data[i][2] = resultSet.getString("meal_title");
+				data[i][3] = resultSet.getString("meal_description");
+				data[i][4] = resultSet.getString("meal_price");
+				i++;
+			}
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
 
         JTable table = new JTable(data, columnNames);
         JScrollPane scrollPane = new JScrollPane(table);
@@ -242,14 +281,17 @@ public class SharazMealsWindow {
         contentPanel.add(SalesPanel, BorderLayout.CENTER);
 
           // end of manage sales content
+        
         // sidebar logic
+        
+        
         // dashboard button
         dashboardButton.addActionListener(new ActionListener() {
 			
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new CashierDashBoardWindow();
+				new CashierDashBoardWindow(loggedInCashierId);
 			}
 		});
         // payment and cart button
@@ -258,7 +300,7 @@ public class SharazMealsWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new PaymentWindow();
+				new PaymentWindow(loggedInCashierId);
 			}
 		});
         // my sales button
@@ -267,7 +309,7 @@ public class SharazMealsWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new CashierSalesWindow();
+				new CashierSalesWindow(loggedInCashierId);
 			}
 		});
         // sharaz meals button
@@ -284,7 +326,21 @@ public class SharazMealsWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new ChangePasswordWindow();
+				new ChangePasswordWindow(loggedInCashierId);
+			}
+		});
+        
+        //logout logic
+        logoutButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int logoutOption = JOptionPane.showConfirmDialog(frame, "Do you want to Log Out?", "Log Out", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null);
+				System.out.println(logoutOption);
+				if (logoutOption == 0) {
+					frame.dispose();
+					new StartWindow();
+				}
 			}
 		});
             

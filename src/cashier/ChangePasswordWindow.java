@@ -11,6 +11,10 @@ import java.awt.Image;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -19,6 +23,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JSeparator;
@@ -29,15 +34,28 @@ import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
 import sharaz.ImageAvatar;
+import sharaz.SharazDatabase;
+import sharaz.StartWindow;
 
 public class ChangePasswordWindow {
-	public ChangePasswordWindow() {
+	
+	private String loggedInCashierId;
+
+	
+	public ChangePasswordWindow(String cashierId) {
+		this.loggedInCashierId = cashierId;
+		
+		SharazDatabase sharazDatabase = new SharazDatabase();
+		BufferedImage bufferedImage = (BufferedImage) sharazDatabase.getCashier(loggedInCashierId)[2];
+		int ItemsInCart = 0;
+		ItemsInCart = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+
 		JFrame frame = new JFrame();
 		IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
         ImageIcon icon = new ImageIcon(new ImageIcon("logo.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
-        ImageIcon adminIcon = new ImageIcon(new ImageIcon("avatar.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
+        ImageIcon adminIcon = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
         // navbar panel
         JPanel navbarPanel = new JPanel();
         navbarPanel.setLayout(new BorderLayout());
@@ -56,7 +74,7 @@ public class ChangePasswordWindow {
         ImageAvatar imageAvatar = new ImageAvatar();
         imageAvatar.setImage(adminIcon);
         imageAvatar.setBorderColor(new Color(132, 220, 198));
-        adminaAvatarLabel.setText("Welcome Zaks");
+        adminaAvatarLabel.setText("Welcome " + sharazDatabase.getCashier(loggedInCashierId)[0].toString());
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
 		adminaAvatarLabel.setHorizontalAlignment(JLabel.CENTER);
@@ -96,7 +114,7 @@ public class ChangePasswordWindow {
         bottomRightNavbar.setBorder(new EmptyBorder(0, 0, 0, 10));
         bottomRightNavbar.setLayout(new BorderLayout());
         bottomRightNavbar.setBackground(new Color(132, 220, 198));
-        JLabel cartLabel = new JLabel("CART: (0)");
+        JLabel cartLabel = new JLabel("CART: (" + ItemsInCart + ")");
         cartLabel.setFont(new Font("Comic Sans", Font.ITALIC, 18));
         cartLabel.setIcon(IconFontSwing.buildIcon(GoogleMaterialDesignIcons.SHOPPING_CART, 25, new Color(46, 134, 171)));
         
@@ -287,6 +305,73 @@ public class ChangePasswordWindow {
         
         formPanelBase.add(formPanel, BorderLayout.CENTER);
         contentPanel.add(formPanelBase);
+        
+        // Change password logic
+        changePasswordButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				String oldPassword = oldPasswordInput.getText();
+				String newPassword = NewPasswordInput.getText();
+				String confirmPassword = ConfirmPasswordInput.getText();
+				
+				try {
+					ResultSet resultSet;
+					PreparedStatement preparedStatement;
+					
+					String getUsersQuery = "SELECT * FROM cashier WHERE cashier_id = ?";
+					
+					preparedStatement = sharazDatabase.CreateConnection().prepareStatement(getUsersQuery);
+					preparedStatement.setString(1, loggedInCashierId);
+					
+					resultSet = preparedStatement.executeQuery();
+					
+					resultSet.next();
+					
+					String currentUserPassword = resultSet.getString("password").trim();
+					oldPassword = oldPassword.trim();
+					
+					if (!oldPassword.equals(currentUserPassword)) {
+						JOptionPane.showMessageDialog(contentPanel, "Incorrect Old Password");
+						return;
+					}else {
+						if (newPassword.isEmpty() || confirmPassword.isEmpty()) {
+							return;
+						}
+						if (!newPassword.equals(confirmPassword)) {
+							JOptionPane.showMessageDialog(contentPanel, "New Password and Confirm Password does not match");
+							return;
+						}else {
+							
+							// start changing password here
+							PreparedStatement preparedStatement2;
+							
+							String updatePasswordQuery = "UPDATE cashier SET password = ? WHERE cashier_id = ?";
+							preparedStatement2 = sharazDatabase.CreateConnection().prepareStatement(updatePasswordQuery);
+							preparedStatement2.setString(1, confirmPassword);
+							preparedStatement2.setString(2, loggedInCashierId);
+							
+							int res = preparedStatement2.executeUpdate();
+							
+							if (res == 1) {
+								JOptionPane.showMessageDialog(contentPanel, "Password Updated Successfully");
+								frame.dispose();
+								new ChangePasswordWindow(loggedInCashierId);
+							}else {
+								JOptionPane.showMessageDialog(contentPanel, "Can't Updated password, try again");
+							}
+							
+							
+						}
+					}
+					
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
+				
+			}
+		});
           
           // sidebar logic
           // dashboard button
@@ -295,7 +380,7 @@ public class ChangePasswordWindow {
   			@Override
   			public void actionPerformed(ActionEvent e) {
   				frame.dispose();
-  				new CashierDashBoardWindow();
+  				new CashierDashBoardWindow(loggedInCashierId);
   			}
   		});
           // payment and cart button
@@ -304,7 +389,7 @@ public class ChangePasswordWindow {
   			@Override
   			public void actionPerformed(ActionEvent e) {
   				frame.dispose();
-  				new PaymentWindow();
+  				new PaymentWindow(loggedInCashierId);
   			}
   		});
           // my sales button
@@ -313,7 +398,7 @@ public class ChangePasswordWindow {
   			@Override
   			public void actionPerformed(ActionEvent e) {
   				frame.dispose();
-  				new CashierSalesWindow();
+  				new CashierSalesWindow(loggedInCashierId);
   			}
   		});
           // sharaz meals button
@@ -322,7 +407,7 @@ public class ChangePasswordWindow {
   			@Override
   			public void actionPerformed(ActionEvent e) {
   				frame.dispose();
-  				new SharazMealsWindow();
+  				new SharazMealsWindow(loggedInCashierId);
   			}
   		});
           // change password button
@@ -331,6 +416,20 @@ public class ChangePasswordWindow {
   			@Override
   			public void actionPerformed(ActionEvent e) {
   				// it is the current screen
+  			}
+  		});
+          
+          //logout logic
+          logoutButton.addActionListener(new ActionListener() {
+  			
+  			@Override
+  			public void actionPerformed(ActionEvent e) {
+  				int logoutOption = JOptionPane.showConfirmDialog(frame, "Do you want to Log Out?", "Log Out", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null);
+  				System.out.println(logoutOption);
+  				if (logoutOption == 0) {
+  					frame.dispose();
+  					new StartWindow();
+  				}
   			}
   		});
                 

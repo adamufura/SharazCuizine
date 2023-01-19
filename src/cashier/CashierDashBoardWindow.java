@@ -10,6 +10,10 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -30,16 +34,31 @@ import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
 import sharaz.ImageAvatar;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class CashierDashBoardWindow {
-	public CashierDashBoardWindow() {
+	
+	private String loggedInCashierId;
+	
+	static private String currentSelectedMealId;
+	static private int currentSelectedQuantity = 0;
+	static private double currentSelectedPrice = 0.0;
+	
+	public CashierDashBoardWindow(String cashierId) {
+		this.loggedInCashierId = cashierId;
+		
+		SharazDatabase sharazDatabase = new SharazDatabase();
+		BufferedImage bufferedImage = (BufferedImage) sharazDatabase.getCashier(loggedInCashierId)[2];
+		int ItemsInCart = 0;
+		ItemsInCart = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+
 		JFrame frame = new JFrame();
 		IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
         ImageIcon icon = new ImageIcon(new ImageIcon("logo.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
-        ImageIcon adminIcon = new ImageIcon(new ImageIcon("avatar.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
+        ImageIcon adminIcon = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
         // navbar panel
         JPanel navbarPanel = new JPanel();
         navbarPanel.setLayout(new BorderLayout());
@@ -58,7 +77,7 @@ public class CashierDashBoardWindow {
         ImageAvatar imageAvatar = new ImageAvatar();
         imageAvatar.setImage(adminIcon);
         imageAvatar.setBorderColor(new Color(132, 220, 198));
-        adminaAvatarLabel.setText("Welcome Zaks");
+        adminaAvatarLabel.setText("Welcome " + sharazDatabase.getCashier(loggedInCashierId)[0].toString());
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
 		adminaAvatarLabel.setHorizontalAlignment(JLabel.CENTER);
@@ -98,7 +117,7 @@ public class CashierDashBoardWindow {
         bottomRightNavbar.setBorder(new EmptyBorder(0, 0, 0, 10));
         bottomRightNavbar.setLayout(new BorderLayout());
         bottomRightNavbar.setBackground(new Color(132, 220, 198));
-        JLabel cartLabel = new JLabel("CART: (0)");
+        JLabel cartLabel = new JLabel("CART: (" + ItemsInCart + ")");
         cartLabel.setFont(new Font("Comic Sans", Font.ITALIC, 18));
         cartLabel.setIcon(IconFontSwing.buildIcon(GoogleMaterialDesignIcons.SHOPPING_CART, 25, new Color(46, 134, 171)));
         
@@ -216,7 +235,7 @@ public class CashierDashBoardWindow {
         salesPanel.setBackground(new Color(128, 255, 114));
         JLabel salesLabelIcon = new JLabel();
         salesLabelIcon.setIcon(IconFontSwing.buildIcon(FontAwesome.LINE_CHART, 60, new Color(46, 134, 171)));
-        salesLabelIcon.setText("N12K");
+        salesLabelIcon.setText("N" + String.valueOf(sharazDatabase.getTotalCashierSales(loggedInCashierId)));
         salesLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 30));
         salesLabelIcon.setHorizontalAlignment(JLabel.CENTER);
         salesLabelIcon.setVerticalAlignment(JLabel.CENTER);
@@ -234,7 +253,7 @@ public class CashierDashBoardWindow {
         mealsPanel.setBackground(new Color(233, 180, 76));
         JLabel mealsLabelIcon = new JLabel();
         mealsLabelIcon.setIcon(IconFontSwing.buildIcon(FontAwesome.CUTLERY, 60, new Color(46, 134, 171)));
-        mealsLabelIcon.setText("28");
+        mealsLabelIcon.setText(String.valueOf(sharazDatabase.countTableRows("meals")));
         mealsLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 30));
         mealsLabelIcon.setHorizontalAlignment(JLabel.CENTER);
         mealsLabelIcon.setVerticalAlignment(JLabel.CENTER);
@@ -278,7 +297,28 @@ public class CashierDashBoardWindow {
         gridBagConstraints.gridy = 0;
         JLabel availableMealsLabel = new JLabel("Available Meals");
 
-        String meals[] = {"Chips", "Fried Rice", "White Rice", "Chicken Pepper"};
+        // get the available
+        int mealTableRows = sharazDatabase.countTableRows("meals");
+        String meals[] = new String[mealTableRows];
+        
+        try {
+            PreparedStatement preparedStatement;
+            ResultSet resultSet;
+            
+            String getAvailableMeals = "SELECT * FROM meals";
+			preparedStatement = sharazDatabase.CreateConnection().prepareStatement(getAvailableMeals);
+			
+			resultSet = preparedStatement.executeQuery();
+			
+			int counter = 0;
+			while (resultSet.next()) {
+				meals[counter] = resultSet.getString(2) + " - " + resultSet.getString(3) + " - N" + resultSet.getString(5);
+				counter++;
+			}
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
         
         JComboBox<String> availableMealsOption = new JComboBox<String>(meals);
         gridBagConstraints.weightx = 1;
@@ -313,7 +353,7 @@ public class CashierDashBoardWindow {
         leftCenterPanel.setLayout(new BoxLayout(leftCenterPanel, BoxLayout.Y_AXIS));
         JLabel totalAmountLabel = new JLabel("Total Amount");
         JTextField totalAmountInput = new JTextField(20);
-        totalAmountInput.setText("N700");
+        totalAmountInput.setText("N");
         totalAmountInput.setEnabled(false);
         
         leftCenterPanel.add(totalAmountLabel);
@@ -323,7 +363,7 @@ public class CashierDashBoardWindow {
         JButton addBtn = new JButton();
         addBtn.setIcon(IconFontSwing.buildIcon(FontAwesome.PLUS_SQUARE, 18, Color.BLACK));
         JTextField quantityInput = new JTextField(3);
-        quantityInput.setText("1");
+        quantityInput.setText("0");
         quantityInput.setEnabled(false);
         quantityInput.setHorizontalAlignment(JLabel.CENTER);
         quantityInput.setPreferredSize(new Dimension(0, 20));
@@ -363,6 +403,124 @@ public class CashierDashBoardWindow {
         
         // LOGIC
         
+        availableMealsOption.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String selectedMeal = (String) availableMealsOption.getSelectedItem();
+				String selectedMealId = selectedMeal.substring(0, 13);
+				String selectedMealPrice = selectedMeal.substring(selectedMeal.lastIndexOf("N") + 1);
+				currentSelectedQuantity = 1;
+				
+				totalAmountInput.setText(selectedMealPrice);
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+				
+				currentSelectedPrice = Double.parseDouble(selectedMealPrice);
+				currentSelectedMealId = selectedMealId;
+				
+			}
+		});
+        
+ // add more meal
+        
+        addBtn.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				if (currentSelectedQuantity == 0) {
+					JOptionPane.showMessageDialog(contentPanel, "Please select a meal");
+					return;
+				}
+				
+				currentSelectedQuantity = currentSelectedQuantity + 1;
+								
+				double totalAmount = currentSelectedPrice * currentSelectedQuantity;
+								
+				totalAmountInput.setText(String.valueOf(totalAmount));
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+			}
+		});
+        
+        minusBtn.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentSelectedQuantity = currentSelectedQuantity - 1;
+								
+				double totalAmount = currentSelectedPrice * currentSelectedQuantity;
+								
+				totalAmountInput.setText(String.valueOf(totalAmount));
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+			}
+		});
+        
+        // Clear order
+        
+        clearButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				currentSelectedQuantity = 0;
+				currentSelectedPrice = 0.0;
+				
+				totalAmountInput.setText(String.valueOf(currentSelectedPrice));
+				quantityInput.setText(String.valueOf(currentSelectedQuantity));
+			}
+		});
+        
+        // make order and payment
+        orderButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+
+				if (currentSelectedQuantity == 0) {
+					JOptionPane.showMessageDialog(contentPanel, "Please select a meal");
+					return;
+				}
+				
+				double amount = currentSelectedPrice * currentSelectedQuantity;
+				int makeOrder = JOptionPane.showConfirmDialog(contentPanel, "Order this meal Of N" + amount + " ?");
+				
+				if (makeOrder == 0) {
+					
+					java.util.Date date=new java.util.Date();
+					java.sql.Date sqlOrderDate =new java.sql.Date(date.getTime());
+					
+					// make order process
+					try {
+						PreparedStatement preparedStatement;
+		                String orderQuery = "INSERT INTO `sales`(meal_id, cashier_id, quantity, amount, date_time) VALUES(?, ?, ?, ?, ?)";
+						preparedStatement = sharazDatabase.CreateConnection().prepareStatement(orderQuery);
+						preparedStatement.setString(1, currentSelectedMealId);
+						preparedStatement.setString(2, loggedInCashierId);
+						preparedStatement.setString(3, String.valueOf(currentSelectedQuantity));
+						preparedStatement.setString(4, String.valueOf(amount));
+						preparedStatement.setDate(5, sqlOrderDate);
+						
+						int res = preparedStatement.executeUpdate();
+						
+						if (res == 1) {
+							String msg = "Your Order was successfull";
+							JOptionPane.showMessageDialog(contentPanel, msg, "Meal Ordered", JOptionPane.INFORMATION_MESSAGE, null);
+							frame.dispose();
+							new CashierDashBoardWindow(loggedInCashierId);
+						}else {
+							JOptionPane.showMessageDialog(contentPanel, "Can't Order this meal", "Error!", JOptionPane.ERROR_MESSAGE, null);
+						}
+						
+							
+					} catch (Exception e2) {
+						e2.printStackTrace();
+					}
+					
+					
+				}
+				
+			}
+		});
+        
         // sidebar logic
         // dashboard button
         dashboardButton.addActionListener(new ActionListener() {
@@ -378,7 +536,7 @@ public class CashierDashBoardWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new PaymentWindow();
+				new PaymentWindow(loggedInCashierId);
 			}
 		});
         // my sales button
@@ -387,7 +545,7 @@ public class CashierDashBoardWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new CashierSalesWindow();
+				new CashierSalesWindow(loggedInCashierId);
 			}
 		});
         // sharaz meals button
@@ -396,7 +554,7 @@ public class CashierDashBoardWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new SharazMealsWindow();
+				new SharazMealsWindow(loggedInCashierId);
 			}
 		});
         // change password button
@@ -405,7 +563,7 @@ public class CashierDashBoardWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new ChangePasswordWindow();
+				new ChangePasswordWindow(loggedInCashierId);
 			}
 		});
         

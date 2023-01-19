@@ -8,10 +8,16 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -21,17 +27,22 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 
 import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class ManageMealsWindow {
-    JFrame frame = new JFrame();        
+	static private String currentSelectedMeal = null;
+	
 	public ManageMealsWindow() {
+		SharazDatabase sharazDatabase = new SharazDatabase();
+	    JFrame frame = new JFrame();  
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
@@ -49,7 +60,7 @@ public class ManageMealsWindow {
         leftNavbarPanel.setBackground(new Color(46, 134, 171));
         leftNavbarPanel.setPreferredSize(new Dimension(200, 0));
         JLabel adminaAvatarLabel = new JLabel();
-        adminaAvatarLabel.setText("Welcome AISHA");
+        adminaAvatarLabel.setText("Welcome ADMIN");
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
         adminaAvatarLabel.setIcon(adminIcon);
@@ -171,42 +182,102 @@ public class ManageMealsWindow {
         
         sidebarPanel.add(sidebarItemsPanel, BorderLayout.CENTER);
         sidebarPanel.add(logoutButtonPanel, BorderLayout.SOUTH);
+      
+        
+        JPanel editTablePanel = new JPanel();
+        editTablePanel.setLayout(new BorderLayout());
+        JPanel editTableInputsPanel = new JPanel();
+        editTableInputsPanel.setLayout(new BoxLayout(editTableInputsPanel, BoxLayout.Y_AXIS));
+        editTableInputsPanel.setBorder(new EmptyBorder(5, 30, 5, 30));
+        JPanel editTableButtonsPanel = new JPanel();
+        
+        
+        JLabel mealTitleLabel = new JLabel("Meal Title");
+        JTextField mealTitleInput = new JTextField();
+        
+        JLabel mealDescriptionLabel = new JLabel("Meal Description");
+        JTextField mealDescriptionInput = new JTextField();
+        
+        JLabel mealPriceLabel = new JLabel("Meal Price");
+        JTextField mealPriceInput = new JTextField();
+        
+        editTableInputsPanel.add(mealTitleLabel);
+        editTableInputsPanel.add(mealTitleInput);
+        
+        editTableInputsPanel.add(mealDescriptionLabel);
+        editTableInputsPanel.add(mealDescriptionInput);
+        
+        editTableInputsPanel.add(mealPriceLabel);
+        editTableInputsPanel.add(mealPriceInput);
+        
+        JButton updateMealButton = new JButton("Update Meal");
+        updateMealButton.setFocusable(false);
+        JButton deleteMealButton = new JButton("Delete Meal");
+        deleteMealButton.setFocusable(false);
+        
+        editTableButtonsPanel.add(updateMealButton);
+        editTableButtonsPanel.add(deleteMealButton);
 
         
+        editTablePanel.add(editTableInputsPanel, BorderLayout.CENTER);
+        editTablePanel.add(editTableButtonsPanel, BorderLayout.SOUTH);
+        
+        editTablePanel.setPreferredSize(new Dimension(0,150));
+        editTablePanel.setBackground(Color.red);
         
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BorderLayout());
+                
         
-         // todays sales
-      JPanel manageMealPanel = new JPanel();
-      manageMealPanel.setBorder(new EmptyBorder(30, 10, 30, 10));
-      manageMealPanel.setLayout(new BorderLayout());
+         // manage meals
         
-        contentPanel.add(new JLabel("Manage Meals Window"));
         String[] columnNames = {
         		"S/N",
                 "Meal ID",
                 "Meal Title",
                 "Description",
                 "Price",
-                
                 };
-        Object[][] data = {
-        		{"1", "Meal3", "Chips", "Chips And Egg", "1500"},
-        		{"2", "Meal5", "Fried Rice", "Fried Rice And Chicken", "400"},
-        		{"3", "Meal1", "Tuwo", "Tuwo And Pepe Chicken", "1000"},
-        		{"1", "Meal3", "Chips", "Chips And Egg", "1500"},
-        		{"2", "Meal5", "Fried Rice", "Fried Rice And Chicken", "400"},
-        		{"3", "Meal1", "Tuwo", "Tuwo And Pepe Chicken", "1000"},
-        		{"1", "Meal3", "Chips", "Chips And Egg", "1500"},
-        		{"2", "Meal5", "Fried Rice", "Fried Rice And Chicken", "400"},
-        		{"3", "Meal1", "Tuwo", "Tuwo And Pepe Chicken", "1000"},
-        		{"1", "Meal3", "Chips", "Chips And Egg", "1500"},
-        		{"2", "Meal5", "Fried Rice", "Fried Rice And Chicken", "400"},
-        		{"3", "Meal1", "Tuwo", "Tuwo And Pepe Chicken", "1000"},
-        		
-        	};
-        JTable table = new JTable(data, columnNames);
+        
+        int mealRowCount = sharazDatabase.countTableRows("meals");
+        
+        Object[][] data = new Object[mealRowCount][6];
+        
+       
+        
+        try {
+        	
+        	 PreparedStatement getMealsStatement;
+     		 ResultSet resultSet;
+             String getMealsQuery = "SELECT * FROM meals";
+             
+             
+			getMealsStatement = sharazDatabase.CreateConnection().prepareStatement(getMealsQuery);
+			resultSet = getMealsStatement.executeQuery();
+			
+	        int i = 0;
+	        while (resultSet.next() && i < mealRowCount) {
+	        	int j = i + 1;
+				data[i][0] =  j;
+				data[i][1] = resultSet.getString("meal_id");
+				data[i][2] = resultSet.getString("meal_title");
+				data[i][3] = resultSet.getString("meal_description");
+				data[i][4] = resultSet.getString("meal_price");
+				i++;
+			}
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+      JPanel manageMealPanel = new JPanel();
+      manageMealPanel.setBorder(new EmptyBorder(30, 10, 30, 10));
+      manageMealPanel.setLayout(new BorderLayout());
+        
+        contentPanel.add(new JLabel("Manage Meals Window"));
+        
+      JTable table = new JTable(data, columnNames);
+      
+        table.setDefaultEditor(Object.class, null);
       JScrollPane scrollPane = new JScrollPane(table);
       scrollPane.setBorder (BorderFactory.createTitledBorder (BorderFactory.createEtchedBorder (),
               "Manage Meals",
@@ -218,10 +289,132 @@ public class ManageMealsWindow {
    
       manageMealPanel.add(scrollPane);
       
-      contentPanel.add(manageMealPanel);
+      contentPanel.add(editTablePanel, BorderLayout.NORTH);
+      contentPanel.add(manageMealPanel,  BorderLayout.CENTER);
         	
         
         // LOGIC
+      table.addMouseListener(new MouseListener() {
+		
+		@Override
+		public void mouseReleased(MouseEvent e) {
+			
+		}
+		
+		@Override
+		public void mousePressed(MouseEvent e) {
+			
+		}
+		
+		@Override
+		public void mouseExited(MouseEvent e) {
+			
+		}
+		
+		@Override
+		public void mouseEntered(MouseEvent e) {
+			
+		}
+		
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			currentSelectedMeal = table.getValueAt(table.getSelectedRow(), 1).toString();
+			mealTitleInput.setText(table.getValueAt(table.getSelectedRow(), 2).toString());
+			mealDescriptionInput.setText(table.getValueAt(table.getSelectedRow(), 3).toString());
+			mealPriceInput.setText(table.getValueAt(table.getSelectedRow(), 4).toString());
+		}
+	});
+      
+      updateMealButton.addActionListener(new ActionListener() {
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			
+			String mealTitle = mealTitleInput.getText();
+			String mealDescription = mealDescriptionInput.getText();
+			String mealPrice = mealPriceInput.getText();
+			
+			// empty inputs validation
+//			if (currentSelectedMeal != null || mealTitle.isEmpty() || mealDescription.isEmpty() || mealPrice.isEmpty()) {
+//				JOptionPane.showMessageDialog(contentPanel, "Inputs cannot be empty", "Fill the Inputs!",JOptionPane.WARNING_MESSAGE, null);
+//				return;
+//			}
+			
+			// convert price to double
+			double newMealPrice = Double.parseDouble(mealPrice);
+			
+			try {
+				PreparedStatement preparedStatement = null;
+				
+				String updateMealQuery = "UPDATE meals SET meal_title = ?, meal_description = ?, meal_price = ? "
+						+ " WHERE meal_id = ?";
+				preparedStatement = sharazDatabase.CreateConnection().prepareStatement(updateMealQuery);
+				
+				preparedStatement.setString(1, mealTitle);
+				preparedStatement.setString(2, mealDescription);
+				preparedStatement.setDouble(3, newMealPrice);
+				preparedStatement.setString(4, currentSelectedMeal);
+				
+				int response = (int) preparedStatement.executeUpdate();
+				
+				if (response == 1) {
+					String msg = "Meal " + mealTitle + " was updated";
+					JOptionPane.showMessageDialog(contentPanel, msg, "Meal Updated!", JOptionPane.INFORMATION_MESSAGE, null);
+					
+					frame.dispose();
+					new ManageMealsWindow();
+				}else {
+					JOptionPane.showMessageDialog(contentPanel, "Can't update Meal try again", "Error!", JOptionPane.ERROR_MESSAGE, null);
+				}
+				
+				// reset inputs to empty
+				mealTitleInput.setText("");
+				mealDescriptionInput.setText("");
+				mealPriceInput.setText("");
+				
+			} catch (SQLException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			
+		}
+	});
+      
+      deleteMealButton.addActionListener(new ActionListener() {
+		
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			// check if a row is selected
+			 if (currentSelectedMeal != null) {
+				 int deleteResponse = JOptionPane.showConfirmDialog(contentPanel, "Are you sure you want to delete this meal?");
+				 
+				 // confirm box
+				 if (deleteResponse == 0) {
+					 PreparedStatement DeleteMealStatement;
+		             String DeleteCashierQuery = "DELETE FROM meals WHERE meal_id = ?";
+		             
+		             try {
+		            	 DeleteMealStatement = sharazDatabase.CreateConnection().prepareStatement(DeleteCashierQuery);
+		            	 DeleteMealStatement.setString(1, currentSelectedMeal);
+			             int response = DeleteMealStatement.executeUpdate();
+			             
+			             if (response == 1) {
+							JOptionPane.showMessageDialog(contentPanel, "Meal Has been deleted");
+							currentSelectedMeal = null;
+							frame.dispose();
+							new ManageMealsWindow();
+						}
+			             
+					} catch (SQLException e1) {
+						e1.printStackTrace();
+					}
+				}
+			}else {
+				// show dialogue box
+				JOptionPane.showMessageDialog(contentPanel, "No Meal Is Selected");
+			}
+		}
+	});
         
         // sidebar logic
         // dashboard button
@@ -306,5 +499,9 @@ public class ManageMealsWindow {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+	
+	void updateMealsTable(){
+		
+	}
 
 }

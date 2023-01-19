@@ -8,6 +8,9 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -27,11 +30,15 @@ import javax.swing.border.TitledBorder;
 import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class ManageSalesWindow {
     JFrame frame = new JFrame();        
     public ManageSalesWindow() {
+    	
+    	SharazDatabase sharazDatabase = new SharazDatabase();
+    	
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
@@ -49,7 +56,7 @@ public class ManageSalesWindow {
         leftNavbarPanel.setBackground(new Color(46, 134, 171));
         leftNavbarPanel.setPreferredSize(new Dimension(200, 0));
         JLabel adminaAvatarLabel = new JLabel();
-        adminaAvatarLabel.setText("Welcome AISHA");
+        adminaAvatarLabel.setText("Welcome ADMIN");
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
         adminaAvatarLabel.setIcon(adminIcon);
@@ -192,38 +199,40 @@ public class ManageSalesWindow {
               "Date/Time"
               };
 
-      Object[][] data = {
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-      		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-      		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-      	};
+      
+      int SalesRows = sharazDatabase.countTableRows("sales");
+       Object[][] data = new Object[SalesRows][6];
+               
+       try {
+       	
+       	 PreparedStatement getSalesStatement;
+    		 ResultSet resultSet;
+            String getMealsQuery = "SELECT * FROM sales";
+            
+            getSalesStatement = sharazDatabase.CreateConnection().prepareStatement(getMealsQuery);
+            resultSet = getSalesStatement.executeQuery();
+            
+            
+	        int i = 0;
+	        while (resultSet.next()) {
+	        	int j = i + 1;
+	        	        	
+				data[i][0] =  j;
+				data[i][1] = resultSet.getString("meal_id");
+				data[i][2] = sharazDatabase.getMealTitle(resultSet.getString("meal_id"));
+				data[i][3] = resultSet.getString("quantity");
+				data[i][4] = resultSet.getString("amount");
+				data[i][5] = resultSet.getString("date_time");
+				i++;
+			}
+	        
+	        resultSet.close();
+	        getSalesStatement.close();
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
+
 
       JTable table = new JTable(data, columnNames);
       JScrollPane scrollPane = new JScrollPane(table);

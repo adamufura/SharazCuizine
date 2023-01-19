@@ -8,6 +8,10 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -24,15 +28,23 @@ import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.TitledBorder;
 
+import com.github.sarxos.webcam.Webcam;
+import com.github.sarxos.webcam.WebcamPanel;
+import com.github.sarxos.webcam.WebcamResolution;
+
 import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class DashboardWindow {
     JFrame frame = new JFrame();        
+    
+    
 
     public DashboardWindow() {
+    	SharazDatabase sharazDatabase = new SharazDatabase();
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
@@ -50,7 +62,7 @@ public class DashboardWindow {
         leftNavbarPanel.setBackground(new Color(46, 134, 171));
         leftNavbarPanel.setPreferredSize(new Dimension(200, 0));
         JLabel adminaAvatarLabel = new JLabel();
-        adminaAvatarLabel.setText("Welcome AISHA");
+        adminaAvatarLabel.setText("Welcome ADMIN");
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
         adminaAvatarLabel.setIcon(adminIcon);
@@ -189,8 +201,8 @@ public class DashboardWindow {
         salesPanel.setBackground(new Color(128, 255, 114));
         JLabel salesLabelIcon = new JLabel();
         salesLabelIcon.setIcon(IconFontSwing.buildIcon(FontAwesome.LINE_CHART, 60, new Color(46, 134, 171)));
-        salesLabelIcon.setText("N183K");
-        salesLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 30));
+        salesLabelIcon.setText("N" + String.valueOf(sharazDatabase.getTotalSales()));
+        salesLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 20));
         salesLabelIcon.setHorizontalAlignment(JLabel.CENTER);
         salesLabelIcon.setVerticalAlignment(JLabel.CENTER);
         JLabel salesPanelTitle = new JLabel("SALES");
@@ -208,8 +220,8 @@ public class DashboardWindow {
         cashierPanel.setBackground(new Color(214, 64, 69));
         JLabel cashierLabelIcon = new JLabel();
         cashierLabelIcon.setIcon(IconFontSwing.buildIcon(GoogleMaterialDesignIcons.PEOPLE, 60, new Color(46, 134, 171)));
-        cashierLabelIcon.setText("12");
-        cashierLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 30));
+        cashierLabelIcon.setText(String.valueOf(sharazDatabase.countTableRows("cashier")));
+        cashierLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 20));
         cashierLabelIcon.setHorizontalAlignment(JLabel.CENTER);
         cashierLabelIcon.setVerticalAlignment(JLabel.CENTER);
         JLabel cashierPanelTitle = new JLabel("CASHIERS");
@@ -226,8 +238,8 @@ public class DashboardWindow {
         mealsPanel.setBackground(new Color(233, 180, 76));
         JLabel mealsLabelIcon = new JLabel();
         mealsLabelIcon.setIcon(IconFontSwing.buildIcon(FontAwesome.CUTLERY, 60, new Color(46, 134, 171)));
-        mealsLabelIcon.setText("28");
-        mealsLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 30));
+        mealsLabelIcon.setText(String.valueOf(sharazDatabase.countTableRows("meals")));
+        mealsLabelIcon.setFont(new Font("Times New Roman", Font.BOLD, 20));
         mealsLabelIcon.setHorizontalAlignment(JLabel.CENTER);
         mealsLabelIcon.setVerticalAlignment(JLabel.CENTER);
         JLabel mealsPanelTitle = new JLabel("MEALS");
@@ -238,9 +250,14 @@ public class DashboardWindow {
         mealsPanel.add(mealsLabelIcon, BorderLayout.CENTER);
         mealsPanel.add(mealsPanelTitle, BorderLayout.SOUTH);
         
+        
+        JButton showCCTV = new JButton("Open CCTV Camera");
+
+        
         cardsPanel.add(salesPanel);
         cardsPanel.add(cashierPanel);
         cardsPanel.add(mealsPanel);
+        cardsPanel.add(showCCTV);
         
         // todays sales
         JPanel todaysSalesPanel = new JPanel();
@@ -248,31 +265,53 @@ public class DashboardWindow {
         todaysSalesPanel.setLayout(new BorderLayout());
         
         String[] columnNames = {
-        		"S/N",
-                "Meal ID",
-                "Meal Title",
-                "Amount",
-                "Quantity",
-                "Time"
-                };
-        
-        Object[][] data = {
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        	};
+          		"S/N",
+                  "Meal ID",
+                  "Meal Title",
+                  "Amount",
+                  "Quantity",
+                  "Date/Time"
+                  };
+
+          
+          int SalesRows = sharazDatabase.countTableRows("sales");
+           Object[][] data = new Object[SalesRows][6];
+                   
+           try {
+		        java.util.Date date=new java.util.Date();
+				java.sql.Date sqlOrderDate =new java.sql.Date(date.getTime());
+				
+           	 PreparedStatement getSalesStatement;
+        	 ResultSet resultSet;
+             String getMealsQuery = "SELECT * FROM sales WHERE date_time = ?";
+                
+                getSalesStatement = sharazDatabase.CreateConnection().prepareStatement(getMealsQuery);
+                getSalesStatement.setDate(1, sqlOrderDate);
+                resultSet = getSalesStatement.executeQuery();
+                
+                
+    	        int i = 0;
+    	        while (resultSet.next()) {
+    	        	int j = i + 1;
+    	        	        	
+    				data[i][0] =  j;
+    				data[i][1] = resultSet.getString("meal_id");
+    				data[i][2] = sharazDatabase.getMealTitle(resultSet.getString("meal_id"));
+    				data[i][3] = resultSet.getString("quantity");
+    				data[i][4] = resultSet.getString("amount");
+    				data[i][5] = resultSet.getString("date_time");
+    				i++;
+    			}
+    	        
+    	        resultSet.close();
+    	        getSalesStatement.close();
+    			
+    		} catch (SQLException e1) {
+    			e1.printStackTrace();
+    		}
+           
+           
+
         
         JTable table = new JTable(data, columnNames);
         JScrollPane scrollPane = new JScrollPane(table);
@@ -291,6 +330,49 @@ public class DashboardWindow {
         contentPanel.add(todaysSalesPanel, BorderLayout.CENTER);
         
         // LOGIC
+                
+        showCCTV.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				Webcam webcam = Webcam.getDefault();
+				webcam.setViewSize(WebcamResolution.VGA.getSize());
+				
+				WebcamPanel webcamPanel = new WebcamPanel(webcam);
+				webcamPanel.setFPSDisplayed(true);
+				webcamPanel.setDisplayDebugInfo(true);
+				webcamPanel.setImageSizeDisplayed(true);
+				webcamPanel.setMirrored(true);
+				
+				JFrame window = new JFrame();
+				
+				
+				window.add(webcamPanel);
+				window.setResizable(true);
+				window.pack();
+				window.setLocationRelativeTo(null);
+				window.setVisible(true);
+				
+			    window.addWindowListener(new java.awt.event.WindowAdapter() {
+		            @Override
+		            public void windowClosing(java.awt.event.WindowEvent windowEvent) {
+		                if (JOptionPane.showConfirmDialog(frame, 
+		                    "Are you sure you want to close CCTV Camera?", "Close Window?", 
+		                    JOptionPane.YES_NO_OPTION,
+		                    JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION){
+		                	webcam.close();
+		                    window.dispose();
+		                }
+		            }
+		        });
+			}
+			
+			
+		});
+        
+    
+
+
         
         // sidebar logic
         // dashboard button

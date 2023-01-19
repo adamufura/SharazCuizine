@@ -8,6 +8,13 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -25,11 +32,14 @@ import javax.swing.border.EmptyBorder;
 import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
+import sharaz.SharazDatabase;
 import sharaz.StartWindow;
 
 public class AddCashierWindow {
-    JFrame frame = new JFrame();        
 	public AddCashierWindow() {
+    JFrame frame = new JFrame();        
+	SharazDatabase sharazDatabase = new SharazDatabase();
+	
     	IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
@@ -47,7 +57,7 @@ public class AddCashierWindow {
         leftNavbarPanel.setBackground(new Color(46, 134, 171));
         leftNavbarPanel.setPreferredSize(new Dimension(200, 0));
         JLabel adminaAvatarLabel = new JLabel();
-        adminaAvatarLabel.setText("Welcome AISHA");
+        adminaAvatarLabel.setText("Welcome ADMIN");
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
         adminaAvatarLabel.setIcon(adminIcon);
@@ -198,8 +208,27 @@ public class AddCashierWindow {
          formPanel.setPreferredSize(new Dimension(300, 350));
          formPanel.setBorder(new EmptyBorder(50, 20, 50, 20));
          
+         // ID Logic
+         ResultSet resultSet;
+         String currentID = "SHA/CSH/";
+         int cashierIntegerId = 0;
+         String lastMealID = "SELECT * FROM cashier ORDER BY cashier_id DESC LIMIT 1";
+         try {
+			PreparedStatement getIdStatement = sharazDatabase.CreateConnection().prepareStatement(lastMealID);
+			
+			resultSet = getIdStatement.executeQuery();
+			
+			if (resultSet.next()) {
+				cashierIntegerId = (Integer.parseInt(resultSet.getString(2).substring(8))) + 1;
+			}
+			
+		} catch (SQLException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
+         
          JLabel cashierIdLabel = new JLabel("Cashier Id");
-         JTextField cashierIdInput = new JTextField();
+         JTextField cashierIdInput = new JTextField(currentID + String.valueOf(cashierIntegerId));
          
          JLabel cashierFirstNameLabel = new JLabel("First Name");
          JTextField cashierFirstNameInput = new JTextField();
@@ -246,7 +275,76 @@ public class AddCashierWindow {
         
         
         // LOGIC
-        
+        AddCashierBtn.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				
+				String cashier_id = cashierIdInput.getText();
+				String first_name  = cashierFirstNameInput.getText();
+				String last_name = cashierLastNameInput.getText();
+				String phonenumber = cashierPhoneNumberInput.getText();
+				String address = cashierAddressInput.getText();
+				
+				java.util.Date date=new java.util.Date();
+				java.sql.Date sqlDateJoined =new java.sql.Date(date.getTime());
+				
+				// empty inputs validation
+				if (cashier_id.isEmpty() || first_name.isEmpty() || last_name.isEmpty() || phonenumber.isEmpty() || address.isEmpty()) {
+					JOptionPane.showMessageDialog(contentPanel, "Inputs cannot be empty", "Fill the Inputs!",JOptionPane.WARNING_MESSAGE, null);
+					return;
+				}
+
+			    try {
+					PreparedStatement preparedStatement;
+					File imageFile;
+				    FileInputStream fileInputStream = null;
+					imageFile = new File("admin.png");
+					
+					try {
+						fileInputStream = new FileInputStream(imageFile);
+					} catch (FileNotFoundException e1) {
+						e1.printStackTrace();
+					}
+					
+					String addCashierQuery = "INSERT INTO cashier(cashier_id, first_name, last_name, phone_number, address, date_joined, avatar)"
+							+ "VALUES (?, ?, ?, ?, ?, ?, ?)";
+					
+					preparedStatement =	sharazDatabase.CreateConnection().prepareStatement(addCashierQuery);
+					preparedStatement.setString(1, cashier_id);
+					preparedStatement.setString(2, first_name);
+					preparedStatement.setString(3, last_name);
+					preparedStatement.setString(4, phonenumber);
+					preparedStatement.setString(5, address);
+					preparedStatement.setDate(6, sqlDateJoined);
+					preparedStatement.setBinaryStream(7, (InputStream)fileInputStream, (int)imageFile.length());
+					
+					int response = preparedStatement.executeUpdate();
+					
+					if (response == 1) {
+						String msg = "Cashier was successfully added";
+						JOptionPane.showMessageDialog(contentPanel, msg, "Casheir Added!", JOptionPane.INFORMATION_MESSAGE, null);
+						frame.dispose();
+						new AddCashierWindow();
+					}else {
+						JOptionPane.showMessageDialog(contentPanel, "Can't add cashier try again", "Error!", JOptionPane.ERROR_MESSAGE, null);
+					}
+					
+					// reset inputs to empty
+				     cashierIdInput.setText("");
+					 cashierFirstNameInput.setText("");
+					cashierLastNameInput.setText("");
+					 cashierPhoneNumberInput.setText("");
+					cashierAddressInput.setText("");
+					
+
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				}
+				
+			}
+        });
+		
         // sidebar logic
         // dashboard button
         dashboardButton.addActionListener(new ActionListener() {

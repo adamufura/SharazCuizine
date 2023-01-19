@@ -8,6 +8,10 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -16,6 +20,7 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
@@ -27,15 +32,28 @@ import icon.FontAwesome;
 import icon.GoogleMaterialDesignIcons;
 import jiconfont.swing.IconFontSwing;
 import sharaz.ImageAvatar;
+import sharaz.SharazDatabase;
+import sharaz.StartWindow;
 
 public class CashierSalesWindow {
-	public CashierSalesWindow() {
+
+	private String loggedInCashierId;
+
+	public CashierSalesWindow(String cashierId) {
+		this.loggedInCashierId = cashierId;
+
+		SharazDatabase sharazDatabase = new SharazDatabase();
+		BufferedImage bufferedImage = (BufferedImage) sharazDatabase.getCashier(loggedInCashierId)[2];
+		int ItemsInCart = 0;
+		ItemsInCart = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM cart WHERE cashier_id = ?", loggedInCashierId);
+		
 		JFrame frame = new JFrame();
+		
 		IconFontSwing.register(GoogleMaterialDesignIcons.getIconFont());
     	IconFontSwing.register(FontAwesome.getIconFont());
     	
         ImageIcon icon = new ImageIcon(new ImageIcon("logo.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
-        ImageIcon adminIcon = new ImageIcon(new ImageIcon("avatar.png").getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
+        ImageIcon adminIcon = new ImageIcon(new ImageIcon(bufferedImage).getImage().getScaledInstance(60, 60, Image.SCALE_DEFAULT));
         // navbar panel
         JPanel navbarPanel = new JPanel();
         navbarPanel.setLayout(new BorderLayout());
@@ -54,7 +72,7 @@ public class CashierSalesWindow {
         ImageAvatar imageAvatar = new ImageAvatar();
         imageAvatar.setImage(adminIcon);
         imageAvatar.setBorderColor(new Color(132, 220, 198));
-        adminaAvatarLabel.setText("Welcome Zaks");
+        adminaAvatarLabel.setText("Welcome " + sharazDatabase.getCashier(loggedInCashierId)[0].toString());
         adminaAvatarLabel.setForeground(Color.WHITE);
         adminaAvatarLabel.setFont(new Font("Times New Roman", Font.BOLD, 18));
 		adminaAvatarLabel.setHorizontalAlignment(JLabel.CENTER);
@@ -94,7 +112,7 @@ public class CashierSalesWindow {
         bottomRightNavbar.setBorder(new EmptyBorder(0, 0, 0, 10));
         bottomRightNavbar.setLayout(new BorderLayout());
         bottomRightNavbar.setBackground(new Color(132, 220, 198));
-        JLabel cartLabel = new JLabel("CART: (0)");
+        JLabel cartLabel = new JLabel("CART: (" + ItemsInCart + ")");
         cartLabel.setFont(new Font("Comic Sans", Font.ITALIC, 18));
         cartLabel.setIcon(IconFontSwing.buildIcon(GoogleMaterialDesignIcons.SHOPPING_CART, 25, new Color(46, 134, 171)));
         
@@ -216,38 +234,40 @@ public class CashierSalesWindow {
                 "Date/Time"
                 };
 
-        Object[][] data = {
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        		{"1", "Meal3", "Chips", "N1500", "3", "2:53PM"},
-        		{"2", "Meal5", "Fried Rice", "N400", "1", "3:00PM"},
-        		{"3", "Meal1", "Chicken", "N3200", "2", "3:30PM"},
-        	};
+        
+       int cashierSalesRows = sharazDatabase.countTableRowsWithQuery("SELECT COUNT(1) FROM sales WHERE cashier_id = ?", loggedInCashierId);
+        Object[][] data = new Object[cashierSalesRows][6];
+                
+        try {
+        	
+        	 PreparedStatement getSalesStatement;
+     		 ResultSet resultSet;
+             String getMealsQuery = "SELECT * FROM sales WHERE cashier_id = ?";
+             
+             getSalesStatement = sharazDatabase.CreateConnection().prepareStatement(getMealsQuery);
+             getSalesStatement.setString(1, loggedInCashierId);
+             resultSet = getSalesStatement.executeQuery();
+             
+             
+	        int i = 0;
+	        while (resultSet.next()) {
+	        	int j = i + 1;
+	        	        	
+				data[i][0] =  j;
+				data[i][1] = resultSet.getString("meal_id");
+				data[i][2] = sharazDatabase.getMealTitle(resultSet.getString("meal_id"));
+				data[i][3] = resultSet.getString("quantity");
+				data[i][4] = resultSet.getString("amount");
+				data[i][5] = resultSet.getString("date_time");
+				i++;
+			}
+	        
+	        resultSet.close();
+	        getSalesStatement.close();
+			
+		} catch (SQLException e1) {
+			e1.printStackTrace();
+		}
 
         JTable table = new JTable(data, columnNames);
         JScrollPane scrollPane = new JScrollPane(table);
@@ -271,7 +291,7 @@ public class CashierSalesWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new CashierDashBoardWindow();
+				new CashierDashBoardWindow(loggedInCashierId);
 			}
 		});
         // payment and cart button
@@ -280,7 +300,7 @@ public class CashierSalesWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new PaymentWindow();
+				new PaymentWindow(loggedInCashierId);
 			}
 		});
         // my sales button
@@ -297,7 +317,7 @@ public class CashierSalesWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new SharazMealsWindow();
+				new SharazMealsWindow(loggedInCashierId);
 			}
 		});
         // change password button
@@ -306,9 +326,24 @@ public class CashierSalesWindow {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				frame.dispose();
-				new ChangePasswordWindow();
+				new ChangePasswordWindow(loggedInCashierId);
 			}
 		});
+        
+        //logout logic
+        logoutButton.addActionListener(new ActionListener() {
+			
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				int logoutOption = JOptionPane.showConfirmDialog(frame, "Do you want to Log Out?", "Log Out", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null);
+				System.out.println(logoutOption);
+				if (logoutOption == 0) {
+					frame.dispose();
+					new StartWindow();
+				}
+			}
+		});
+        
             
         // window configuration
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
